@@ -10,11 +10,12 @@
 #include <unistd.h>
 #define BUFLEN 81
 
+void handleClient(int clientSocket);
+
 int main()
 {
-    int sockMain, newSocket, length, msgLength;
+    int sockMain, clientSocket, length;
     struct sockaddr_in servAddr, clientAddr;
-    char buf[BUFLEN + 1];
 
     if ((sockMain = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -48,10 +49,9 @@ int main()
     for (;;)
     {
         length = sizeof(clientAddr);
-        memset(buf, 0, sizeof(buf));
 
-        newSocket = accept(sockMain, (struct sockaddr *)&clientAddr, (socklen_t *)&length);
-        if (newSocket < 0)
+        clientSocket = accept(sockMain, (struct sockaddr *)&clientAddr, (socklen_t *)&length);
+        if (clientSocket < 0)
         {
             perror("Ошибка при принятии входящего соединения.");
             exit(1);
@@ -69,52 +69,59 @@ int main()
         {
             // Код дочернего процесса
             close(sockMain);
-
             char clientIp[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIp, INET_ADDRSTRLEN);
             printf("СЕРВЕР: IP адрес клиента: %s\n", clientIp);
             printf("СЕРВЕР: PORT клиента: %d\n", ntohs(clientAddr.sin_port));
-
-            // Обработка данных от клиента
-            while ((msgLength = recv(newSocket, buf, BUFLEN, 0)) > 0)
-            {
-                printf("СЕРВЕР: Длина сообщения - %d\n", msgLength);
-                printf("СЕРВЕР: Сообщение: %s\n\n", buf);
-
-                int x = atoi(buf);
-                x *= 2;
-                x %= 10;
-                sprintf(buf, "%d", x);
-
-                if (send(newSocket, buf, msgLength, 0) < 0)
-                {
-                    perror("Ошибка отправки сообщения обратно клиенту.");
-                    exit(1);
-                }
-                printf("СЕРВЕР: Сообщение отправлено обратно клиенту.\n");
-
-                memset(buf, 0, sizeof(buf));
-            }
-
-            if (msgLength == 0)
-            {
-                printf("СЕРВЕР: Клиент отключился.\n");
-            }
-            else if (msgLength < 0)
-            {
-                perror("Плохой socket клиента.");
-                exit(1);
-            }
-
-            close(newSocket);
+            handleClient(clientSocket);
             exit(0);
         }
         else
         {
             // Код родительского процесса
-            close(newSocket);
+            close(clientSocket);
         }
     }
     close(sockMain);
     return 0;
+}
+
+void handleClient(int clientSocket )
+{
+    char buf[BUFLEN + 1];
+    int msgLength;
+    memset(buf, 0, sizeof(buf));
+
+    // Обработка данных от клиента
+    while ((msgLength = recv(clientSocket, buf, BUFLEN, 0)) > 0)
+    {
+        printf("СЕРВЕР: Длина сообщения - %d\n", msgLength);
+        printf("СЕРВЕР: Сообщение: %s\n\n", buf);
+
+        int x = atoi(buf);
+        x *= 2;
+        x %= 10;
+        sprintf(buf, "%d", x);
+
+        if (send(clientSocket, buf, msgLength, 0) < 0)
+        {
+            perror("Ошибка отправки сообщения обратно клиенту.");
+            exit(1);
+        }
+        printf("СЕРВЕР: Сообщение отправлено обратно клиенту.\n");
+
+        memset(buf, 0, sizeof(buf));
+    }
+
+    if (msgLength == 0)
+    {
+        printf("СЕРВЕР: Клиент отключился.\n");
+    }
+    else if (msgLength < 0)
+    {
+        perror("Плохой socket клиента.");
+        exit(1);
+    }
+
+    close(clientSocket);
 }
