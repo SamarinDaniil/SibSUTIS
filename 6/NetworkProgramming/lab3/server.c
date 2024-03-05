@@ -8,22 +8,10 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <time.h>
+#include <pthread.h>
 #define BUFLEN 81
 
-void handleClient(int clientSocket);
-
-void reaper( int sig ) 
-{ 
-    int status;
-    while( wait3( &status, WNOHANG, (struct rusage *) 0 ) >= 0 ) ;
-}
+void *handleClient(void *arg);
 
 int main()
 {
@@ -59,8 +47,6 @@ int main()
 
     listen(sockMain, 5);
 
-    signal( SIGCHLD, reaper ) ;
-
     for (;;)
     {
         length = sizeof(clientAddr);
@@ -72,39 +58,27 @@ int main()
             exit(1);
         }
         printf("СЕРВЕР: Принято входящее соединение.\n");
+        char clientIp[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIp, INET_ADDRSTRLEN);
+        printf("СЕРВЕР: IP адрес клиента: %s\n", clientIp);
+        printf("СЕРВЕР: PORT клиента: %d\n", ntohs(clientAddr.sin_port));
 
-        // Создание дочернего процесса
-        pid_t childPid = fork();
-        if (childPid < 0)
+        // Создание нового потока для обработки клиента
+        pthread_t thread;
+        if (pthread_create(&thread, NULL, handleClient, (void *)&clientSocket) != 0)
         {
-            perror("Ошибка при создании дочернего процесса.");
-            exit(1);
-        }
-        else if (childPid == 0)
-        {
-            // Код дочернего процесса
-            close(sockMain);
-            char clientIp[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIp, INET_ADDRSTRLEN);
-            printf("СЕРВЕР: IP адрес клиента: %s\n", clientIp);
-            printf("СЕРВЕР: PORT клиента: %d\n", ntohs(clientAddr.sin_port));
-            handleClient(clientSocket);
-            exit(0);
-        }
-        else
-        {
-            // Код родительского процесса
+            perror("Не удалось создать поток.");
             close(clientSocket);
         }
+        pthread_detach(thread);
     }
     close(sockMain);
     return 0;
 }
 
-
-
-void handleClient(int clientSocket )
+void *handleClient(void *arg)
 {
+    int clientSocket = *(int *)arg;
     char buf[BUFLEN + 1];
     int msgLength;
     memset(buf, 0, sizeof(buf));
@@ -141,4 +115,5 @@ void handleClient(int clientSocket )
     }
 
     close(clientSocket);
+    pthread_exit(NULL);
 }
