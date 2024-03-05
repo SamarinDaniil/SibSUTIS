@@ -9,14 +9,31 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
 #define BUFLEN 81
 
 void *handleClient(void *arg);
+
+typedef struct thread_data
+{
+    int socketId;
+    FILE *log_file;
+} thread_data_t;
+
+
+const char* FILENAME = "shared_data.txt";
+pthread_mutex_t mut;
 
 int main()
 {
     int sockMain, clientSocket, length;
     struct sockaddr_in servAddr, clientAddr;
+    FILE *log_file = fopen(FILENAME, "w+");
 
     if ((sockMain = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -47,6 +64,7 @@ int main()
 
     listen(sockMain, 5);
 
+    pthread_mutex_init(&mut, NULL);
     for (;;)
     {
         length = sizeof(clientAddr);
@@ -64,8 +82,9 @@ int main()
         printf("СЕРВЕР: PORT клиента: %d\n", ntohs(clientAddr.sin_port));
 
         // Создание нового потока для обработки клиента
+        thread_data_t data = {clientSocket, log_file};
         pthread_t thread;
-        if (pthread_create(&thread, NULL, handleClient, (void *)&clientSocket) != 0)
+        if (pthread_create(&thread, NULL, handleClient, (void *)&data) != 0)
         {
             perror("Не удалось создать поток.");
             close(clientSocket);
@@ -73,12 +92,15 @@ int main()
         pthread_detach(thread);
     }
     close(sockMain);
+    pthread_mutex_destroy(&mut);
     return 0;
 }
 
-void *handleClient(void *arg)
+void *handleClient(void *args)
 {
-    int clientSocket = *(int *)arg;
+    thread_data_t *data = (thread_data_t *)args;
+    int clientSocket = data->socketId;
+    FILE *log_file = data->log_file;
     char buf[BUFLEN + 1];
     int msgLength;
     memset(buf, 0, sizeof(buf));
@@ -88,10 +110,17 @@ void *handleClient(void *arg)
     {
         printf("СЕРВЕР: Длина сообщения - %d\n", msgLength);
         printf("СЕРВЕР: Сообщение: %s\n\n", buf);
-
+        //
         int x = atoi(buf);
+        int y = x;
         x *= 2;
         x %= 10;
+        //
+        pthread_mutex_lock(&mut);
+        fprintf(log_file, "%d %d %d\n", clientSocket, x, y);
+        fflush(log_file);
+        pthread_mutex_unlock(&mut);
+        //
         sprintf(buf, "%d", x);
 
         if (send(clientSocket, buf, msgLength, 0) < 0)
@@ -112,6 +141,7 @@ void *handleClient(void *arg)
     {
         perror("Плохой socket клиента.");
         exit(1);
+        pthread_exit(NULL);
     }
 
     close(clientSocket);
