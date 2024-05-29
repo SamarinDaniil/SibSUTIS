@@ -1,0 +1,95 @@
+# Собранные объекты
+*.o
+*.ko
+*.obj
+*.elf
+*.lo
+*.gch
+*.pch
+
+# Собранные библиотеки
+*.lib
+*.a
+*.la
+*.lo
+
+# Собранные динамические библиотеки
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Исполняемые файлы
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Трассировочные файлы ядра
+*.stackdump
+
+# Отладочные файлы
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Профилирование файлов
+*.prof
+*.prop
+*.profraw
+
+# Регистрация покрытия кода
+*.gcno
+*.gcda
+
+# Тесты и логи
+*.log
+*.test
+*.mem
+*.rom
+*.hprof
+
+# IDE Разные
+.idea/
+*.swp
+*.swo
+*~
+.VSCode/
+bin/
+obj/
+lost+found/
+*.seed
+*.pid
+*.seed*
+
+# CMake файлы
+CMakeLists.txt.user
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+Testing/
+Makefile
+CMakeScripts/
+CMakeTmp/
+cmake_install.cmake
+install_manifest.txt
+_compile_commands.json
+/compile_flags.txt
+
+# Autotools
+*.spec
+*.omf
+*.oaf
+*.oal
+
+# Каталоги проекта
+build/
+build*/
+
+# Временные файлы редактора
+*~
+\#*\#
+.\#*
