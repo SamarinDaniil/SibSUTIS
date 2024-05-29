@@ -57,7 +57,7 @@
 *.swp
 *.swo
 *~
-.VSCode/
+.vscode/
 bin/
 obj/
 lost+found/
